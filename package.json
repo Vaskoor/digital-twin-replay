@@ -1,0 +1,16 @@
+{
+  "name": "digital-twin-replay",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Production Digital Twin & Replay Platform — capture prod traffic, anonymize, replay against staging, diff behavior, auto-generate regression tests.",
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "tsc --noEmit src/server.ts || true",
+    "dev": "tsx src/server.ts",
+    "start": "node src/server.js || tsx src/server.ts"
+  },
+  "dependencies": { "express": "^4.21.2" },
+  "devDependencies": { "typescript": "^5.7.2", "tsx": "^4.19.2", "@types/express": "^5.0.0", "@types/node": "^22.10.1" }
+}

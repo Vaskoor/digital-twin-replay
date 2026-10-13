@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Digital Twin & Replay — Prod vs Staging Drift</title>
+<style>
+:root{--bg:#0b0f14;--panel:#131a23;--p2:#1a232e;--p3:#222d3a;--bd:#24303d;--fg:#e6edf3;--dim:#8b98a5;--d2:#64707d;--green:#3fb950;--red:#f85149;--yellow:#d29922;--blue:#58a6ff;--purple:#bc8cff;--teal:#2dd4bf;--grad:linear-gradient(90deg,#2dd4bf,#58a6ff)}
+*{box-sizing:border-box;margin:0;padding:0}body{font:14px/1.5 system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--fg)}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:var(--bd);border-radius:4px}
+header{position:sticky;top:0;z-index:10;padding:14px 28px;border-bottom:1px solid var(--bd);background:linear-gradient(90deg,rgba(45,212,191,.08),rgba(88,166,255,.08)),var(--bg);display:flex;align-items:center;gap:12px}
+.logo{width:32px;height:32px;border-radius:8px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:16px}
+header h1{font-size:16px;font-weight:700}.tag{color:var(--dim);font-size:11px;border:1px solid var(--bd);padding:2px 8px;border-radius:999px;text-transform:uppercase;letter-spacing:.04em}
+.spacer{flex:1}.badge{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:5px 11px;border-radius:999px;border:1px solid var(--bd);background:var(--p2)}
+.badge .dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:p 1.6s infinite}@keyframes p{0%,100%{opacity:1}50%{opacity:.4}}
+main{max-width:1300px;margin:0 auto;padding:24px 28px 80px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+.card{background:var(--panel);border:1px solid var(--bd);border-radius:10px;padding:16px;position:relative;overflow:hidden}
+.card::before{content:"";position:absolute;left:0;top:0;width:3px;height:100%;background:var(--blue)}
+.card.g::before{background:var(--green)}.card.r::before{background:var(--red)}.card.y::before{background:var(--yellow)}.card.p::before{background:var(--purple)}.card.t::before{background:var(--teal)}
+.card .l{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--dim)}.card .v{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:4px}
+.card .v.g{color:var(--green)}.v.r{color:var(--red)}.v.y{color:var(--yellow)}.v.p{color:var(--purple)}.v.t{color:var(--teal)}
+.panel{background:var(--panel);border:1px solid var(--bd);border-radius:10px;overflow:hidden;margin-bottom:20px}
+.panel h2{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;padding:14px 18px;border-bottom:1px solid var(--bd)}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:9px 14px;text-align:left;border-bottom:1px solid var(--bd)}
+th{color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.04em}td.r{text-align:right;font-variant-numeric:tabular-nums}
+.pill{padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700}
+.pill.ok{background:rgba(63,185,80,.15);color:var(--green)}.pill.drift{background:rgba(248,81,73,.15);color:var(--red)}.pill.warn{background:rgba(210,153,34,.15);color:var(--yellow)}
+.bar{height:6px;border-radius:3px;background:var(--p3);overflow:hidden;display:inline-block;width:80px;vertical-align:middle}
+.bar>span{display:block;height:100%}
+.grid2{display:grid;grid-template-columns:1fr;gap:20px}@media(min-width:1000px){.grid2{grid-template-columns:1fr 360px}}
+.feed-item{padding:10px 14px;border-bottom:1px solid var(--bd);font-size:12px}
+.feed-item .t{color:var(--d2);font-family:monospace}.feed-item .ep{color:var(--blue);font-weight:600}
+.feed-item .kind{color:var(--red)}
+.arch{font-size:12px;color:var(--dim);line-height:1.9;padding:14px 18px}
+.arch b{color:var(--fg)}
+footer{text-align:center;padding:28px;color:var(--d2);font-size:12px;border-top:1px solid var(--bd);margin-top:20px}
+</style></head>
+<body>
+<header><div class="logo">🔀</div><h1>Digital Twin & Replay</h1><span class="tag">Prod vs Staging Drift</span><div class="spacer"></div><span class="badge"><span class="dot"></span><span id="status">live</span></span></header>
+<main>
+<div class="cards" id="cards"></div>
+<div class="grid2">
+<div>
+<div class="panel"><h2>Behavioral Drift by Endpoint</h2><div style="overflow-x:auto"><table>
+<thead><tr><th>Endpoint</th><th>Reqs</th><th class="r">Prod p95</th><th class="r">Staging p95</th><th>Latency Δ</th><th>Status</th><th>Body Diff</th></tr></thead>
+<tbody id="rows"></tbody></table></div></div>
+<div class="panel"><h2>Drift Anomaly Feed</h2><div id="feed"></div></div>
+</div>
+<div>
+<div class="panel"><h2>Architecture</h2><div class="arch">
+<div>📡 <b>Capture</b> — OpenTelemetry / eBPF / Istio access logs</div>
+<div>🧹 <b>Anonymize</b> — PII scrub + token rotation</div>
+<div>⚡ <b>Replay</b> — Kafka shadow + ToxiProxy fault injection</div>
+<div>🔍 <b>Diff</b> — response body + status + latency + DB state</div>
+<div>🧪 <b>Generate</b> — LLM writes regression tests from mismatches</div>
+<div>📊 <b>Store</b> — ClickHouse + Grafana dashboards</div>
+<div style="margin-top:8px;color:var(--d2)">Stack: Kubernetes · Istio · eBPF · Kafka · ClickHouse · Grafana · LLM</div>
+</div></div>
+</div>
+</div></main>
+<footer>Digital Twin & Replay Platform · MIT · <a href="#" style="color:var(--blue)">GitHub</a></footer>
+<script>
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]))}
+async function load(){
+ try{
+  const r=await fetch('/api/status');const d=await r.json();
+  document.getElementById('status').textContent=`capture ${d.captureRate}/s · replay ${d.replayRate}/s`;
+  document.getElementById('cards').innerHTML=[
+   c('Captured',d.capturedTotal.toLocaleString(),'t'),
+   c('Replayed',d.replayedTotal.toLocaleString(),'blue'),
+   c('Drift',d.driftCount,d.driftCount?'r':'g'),
+   c('Tests Gen',d.testsGenerated,'p'),
+   c('Capture/s',d.captureRate,'t'),
+   c('Replay/s',d.replayRate,'blue'),
+  ].join('');
+  document.getElementById('rows').innerHTML=d.rows.map(r=>{
+   const ld=Math.abs(r.stageP95-r.prodP95);const drift=ld>50||r.statusDrift||r.bodyDrift>5;
+   const pct=Math.min(100,ld/3);const col=ld>50?'var(--red)':ld>20?'var(--yellow)':'var(--green)';
+   return `<tr><td><code>${esc(r.endpoint)}</code></td><td class="r">${r.reqs}</td><td class="r">${r.prodP95}ms</td><td class="r">${r.stageP95}ms</td><td><span class="bar"><span style="width:${pct}%;background:${col}"></span></span> ${ld}ms</td><td><span class="pill ${r.statusDrift?'drift':'ok'}">${r.statusDrift?'mismatch':'match'}</span></td><td><span class="pill ${r.bodyDrift>5?'drift':'ok'}">${r.bodyDrift}%</span></td></tr>`;
+  }).join('');
+  document.getElementById('feed').innerHTML=(d.anomalies||[]).length?d.anomalies.slice(0,8).map(a=>`<div class="feed-item"><span class="t">${a.time}</span> · <span class="ep">${esc(a.endpoint)}</span> · <span class="kind">${a.kind}</span> — ${esc(a.detail)}</div>`).join(''):'<div class="feed-item" style="color:var(--d2)">no anomalies — staging matches prod ✅</div>';
+ }catch(e){document.getElementById('status').textContent='offline'}
+}
+function c(l,v,col){return `<div class="card ${col}"><div class="l">${l}</div><div class="v ${col}">${v}</div></div>`}
+load();setInterval(load,3000);
+</script>
+</body></html>

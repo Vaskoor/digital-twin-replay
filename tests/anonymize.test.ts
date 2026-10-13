@@ -11,7 +11,7 @@ describe("pii-scrubber", () => {
     assert.ok(fields.includes("email"));
   });
   test("scrubs phone numbers", () => {
-    const { cleaned, fields } = scrubPII("call +1-555-0101");
+    const { cleaned, fields } = scrubPII("call +1-555-123-4567");
     assert.ok(cleaned.includes("[phone-redacted]"));
     assert.ok(fields.includes("phone"));
   });

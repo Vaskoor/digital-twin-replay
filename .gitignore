@@ -5,3 +5,12 @@ dist/
 *.log
 *.bak
 *.tsbuildinfo
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
